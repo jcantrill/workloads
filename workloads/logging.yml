@@ -1,0 +1,92 @@
+---
+# Assumptions:
+#  - KUBECONFIG env var is set on orchestration host (would have to be in bashrc) or kubeconfig is set in ~/.kube/config
+#  - cluster-logging operator deployed
+#  - podman installed
+#  - selinux set to permissive (otherwise cluster-loader will fail)
+#  - libselinux-python2 (or variation depending on OS) installed
+- name: Run logging test
+  hosts: orchestration
+  remote_user: "{{orchestration_user}}"
+  vars_files:
+    - vars/logging.yml
+  tasks:
+    - name: Verify oc command is available
+      command: oc version
+      changed_when: False
+    - name: Verify openshift-logging exists
+      shell: oc get projects | grep "openshift-logging"
+      changed_when: False
+    - name: Verify ElasticSearch pods exist
+      shell: oc get pods -n openshift-logging | grep elasticsearch
+      changed_when: False
+    - name: Get ElasticSearch pod to query from
+      shell: oc get pods -n openshift-logging | grep elasticsearch | grep Running | head -n 1 | awk '{print $1}'
+      register: es_pod
+      changed_when: False
+      tags:
+        - delete_indices
+    - name: Delete existing logtest indices
+      shell: |
+        BASE_CMD="oc exec -n openshift-logging -c elasticsearch {{ es_pod.stdout }} -- curl --connect-timeout 2 -s -k --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key"
+        ${BASE_CMD} -X DELETE https://localhost:9200/project.logtest*;
+      tags:
+        - delete_indices
+    - name: Get worker nodes
+      shell: oc get nodes | grep worker | awk '{print $1}'
+      register: worker_nodes
+      changed_when: False
+    - name: Label single worker node
+      block:
+        - name: Remove any existing "placement" labels from worker nodes
+          shell: "oc label node {{ item }} placement-"
+          loop: "{{ worker_nodes.stdout_lines }}"
+          register: result
+          changed_when: '"not labeled" not in result.stdout'
+        - name: Label one worker node with placement=logtest
+          shell: oc label node $(oc get nodes | grep worker | head -n 1 | awk '{print $1}') placement=logtest
+      when: not LABAL_ALL_NODES
+      tags: label_node
+    - name: Label all nodes
+      shell: "for i in $(oc get nodes | grep worker | awk '{print $1}'); do oc label node/$i placement=logtest --overwrite; done"
+      when: LABAL_ALL_NODES
+      tags: label_node
+    - name: Create workloads directory
+      file:
+        path: workloads
+        state: directory
+        mode: '0755'
+    - name: Template cluster-loader logtest logging config file
+      template:
+        src: templates/logtest.yml.j2
+        dest: workloads/logtest.yml
+    - name: Template logtest-rc.json
+      template:
+        src: templates/logtest-rc.json.j2
+        dest: workloads/logtest-rc.json
+    - name: Launch cluster-loader
+      shell: |
+        sudo podman run \
+        -v {{ ansible_facts['env']['KUBECONFIG']|default(ansible_facts['env']['HOME'] + '/.kube/config') }}:/root/.kube/config:z \
+        -v {{ansible_facts['env']['HOME']}}/workloads/:/root/workloads/:z \
+        -i quay.io/openshift/origin-tests:{{ORIGIN_TESTS_VERSION}} \
+        /bin/bash -c 'export KUBECONFIG=/root/.kube/config && \
+        export VIPERCONFIG=/root/workloads/logtest.yml && \
+        openshift-tests run-test "[Feature:Performance][Serial][Slow] Load cluster concurrently with templates [Suite:openshift]"' \
+        |& tee workloads/cluster-loader.log
+    - name: Puase for time of test + PAUSE_OFFSET
+      pause:
+        minutes: "{{ (NUM_LINES|int / RATE|int + PAUSE_OFFSET|int) | round(0, 'ceil') | int }}"
+    - name: Get number of messages indexed
+      shell: x=0; for i in $(oc exec -n openshift-logging {{ es_pod.stdout }} -c elasticsearch -- es_util --query='_cat/indices'| grep logtest | awk '{print $7}'); do (( x += i )); done; echo "$x"
+      register: num_indexed
+    - debug:
+        var: num_indexed
+    - name: Assert number of messages is equal to NUM_LINES*NUM_PROJECTS
+      assert:
+        that:
+          - "{{ num_indexed.stdout }} == {{ (NUM_LINES|int) * (NUM_PROJECTS|int) }}"
+    - name: Clean up logtest projects
+      shell: oc delete project $(oc get projects | grep logtest | awk '{print $1}' | sed ':a;N;$!ba;s/\n/ /g')
+      tags:
+        - cleanup

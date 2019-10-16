@@ -1,0 +1,106 @@
+{% raw %}
+{
+  "apiVersion": "template.openshift.io/v1",
+  "kind": "Template",
+  "metadata": {
+    "name": "centos-logtest-template"
+  },
+  "objects": [
+    {
+      "apiVersion": "v1",
+      "data": {
+        "ocp_logtest.cfg": "${INITIAL_FLAGS}"
+      },
+      "kind": "ConfigMap",
+      "metadata": {
+        "name": "logtest-config"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "ReplicationController",
+      "metadata": {
+        "name": "centos-logtest",
+        "labels": {
+          "run": "centos-logtest",
+          "test": "centos-logtest"
+        }
+      },
+      "spec": {
+        "replicas": "${{REPLICAS}}",
+        "template": {
+          "metadata": {
+            "generateName": "centos-logtest-",
+            "labels": {
+              "run": "centos-logtest",
+              "test": "centos-logtest"
+            }
+          },
+          "spec": {
+            "nodeSelector": {
+              "placement": "${PLACEMENT}"
+            },
+            "containers": [
+              {
+                "env": [
+                ],
+                "image": "${LOGTEST_IMAGE}",
+                "imagePullPolicy": "Always",
+                "name": "centos-logtest",
+                "resources": {},
+                "volumeMounts": [
+                  {
+                    "name": "config",
+                    "mountPath": "/var/lib/svt"
+                  }
+                ],
+                "terminationMessagePath": "/dev/termination-log"
+              }
+            ],
+            "volumes": [
+              {
+                "name": "config",
+                "configMap": {
+                  "name": "logtest-config"
+                }
+              }
+            ],
+            "imagePullSecrets": [
+              {
+                "name": "default-dockercfg-ukomu"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+{% endraw %}
+  "parameters": [
+    {
+      "name": "LOGTEST_IMAGE",
+      "displayName": "logtest image",
+      "value": "quay.io/mffiedler/ocp-logtest:latest"
+    },
+    {
+      "name": "INITIAL_FLAGS",
+      "description": "The initial flags to pass to ocp_logtest.py",
+      "value": "--num-lines {{ NUM_LINES }} --line-length {{ LINE_LENGTH }} --word-length 9 --rate {{ RATE }} --fixed-line\n"
+    },
+    {
+      "name": "IDENTIFIER",
+      "displayName": "identifier",
+      "value": "1"
+    },
+    {
+      "name": "REPLICAS",
+      "displayName": "Replicas",
+      "value": "1"
+    },
+    {
+      "name": "PLACEMENT",
+      "displayName": "Placement",
+      "value": "logtest"
+    }
+  ]
+}

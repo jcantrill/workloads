@@ -1,0 +1,15 @@
+orchestration_user: "{{ lookup('env', 'ORCHESTRATION_USER')|default('root', true) }}"
+
+LABAL_ALL_NODES: False
+
+# Logtest parameters
+NUM_PROJECTS: "{{ lookup('env', 'NUM_PROJECTS')|default(1, true) }}"
+NUM_LINES: "{{ lookup('env', 'NUM_LINES')|default(1800000, true) }}"
+LINE_LENGTH: "{{ lookup('env', 'LINE_LENGTH')|default(1024, true) }}"
+# Messages per minute
+RATE: "{{ lookup('env', 'RATE')|default(60000, true) }}"
+# Time to wait (in minutes) after logtest is done before verifying all messages showed up in elasticsearch
+PAUSE_OFFSET: "{{ lookup('env', 'PAUSE_OFFSET')|default(5, true) }}"
+
+# Version of quay.io/openshift/origin-tests to pull
+ORIGIN_TESTS_VERSION: "{{ lookup('env', 'ORIGIN_TESTS_VERSION')|default('latest', true) }}"
