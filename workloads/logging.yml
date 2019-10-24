@@ -23,6 +23,7 @@
     - name: Get ElasticSearch pod to query from
       shell: oc get pods -n openshift-logging | grep elasticsearch | grep Running | head -n 1 | awk '{print $1}'
       register: es_pod
+      changed_when: False
       tags:
         - delete_indices
     - name: Delete existing logtest indices

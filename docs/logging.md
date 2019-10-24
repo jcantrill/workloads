@@ -1,6 +1,7 @@
 # Logging Workload
 
-Stress test the cluster logging and ElasticSearch operators.
+Stress test the cluster logging and ElasticSearch operators.  
+**NOTE**: This test is currently only configured to assign logtest pods to 1 worker node.
 
 ## Requirements
 
