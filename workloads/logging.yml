@@ -41,8 +41,10 @@
       loop: "{{ worker_nodes.stdout_lines }}"
       register: result
       changed_when: '"not labeled" not in result.stdout'
+      tags: label_node
     - name: Label one worker node with placement=logtest
       shell: oc label node $(oc get nodes | grep worker | head -n 1 | awk '{print $1}') placement=logtest
+      tags: label_node
     - name: Create workloads directory
       file:
         path: workloads
