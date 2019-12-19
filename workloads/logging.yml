@@ -61,8 +61,8 @@
     - name: Launch cluster-loader
       shell: |
         sudo podman run \
-        -v {{ ansible_facts['env']['KUBECONFIG']|default(ansible_facts['env']['HOME'] + '/.kube/config') }}:/root/.kube/config \
-        -v {{ansible_facts['env']['HOME']}}/workloads/:/root/workloads/ \
+        -v {{ ansible_facts['env']['KUBECONFIG']|default(ansible_facts['env']['HOME'] + '/.kube/config') }}:/root/.kube/config:z \
+        -v {{ansible_facts['env']['HOME']}}/workloads/:/root/workloads/:z \
         -i quay.io/openshift/origin-tests:{{ORIGIN_TESTS_VERSION}} \
         /bin/bash -c 'export KUBECONFIG=/root/.kube/config && \
         export VIPERCONFIG=/root/workloads/logtest.yml && \
