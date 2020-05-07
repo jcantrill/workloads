@@ -13,3 +13,8 @@ PAUSE_OFFSET: "{{ lookup('env', 'PAUSE_OFFSET')|default(5, true) }}"
 
 # Version of quay.io/openshift/origin-tests to pull
 ORIGIN_TESTS_VERSION: "{{ lookup('env', 'ORIGIN_TESTS_VERSION')|default('latest', true) }}"
+
+CLUSTER_LOADER_STRING: "{{ '[sig-scalability][Feature:Performance] Load cluster'
+                            if ORIGIN_TESTS_VERSION == 'latest'
+                            or ORIGIN_TESTS_VERSION is version('4.4', '>=')
+                            else '[Feature:Performance][Serial][Slow] Load cluster' }}"

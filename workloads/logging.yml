@@ -72,7 +72,7 @@
         -i quay.io/openshift/origin-tests:{{ORIGIN_TESTS_VERSION}} \
         /bin/bash -c 'export KUBECONFIG=/root/.kube/config && \
         export VIPERCONFIG=/root/workloads/logtest.yml && \
-        openshift-tests run-test "[Feature:Performance][Serial][Slow] Load cluster concurrently with templates [Suite:openshift]"' \
+        openshift-tests run-test "{{ CLUSTER_LOADER_STRING }} concurrently with templates [Suite:openshift]"' \
         |& tee workloads/cluster-loader.log
     - name: Puase for time of test + PAUSE_OFFSET
       pause:
