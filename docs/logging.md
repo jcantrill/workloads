@@ -37,6 +37,17 @@ If True: Apply placement=logtest label to all worker nodes
 default: `root`  
 Remote user to connect as.
 
+### LABAL_ALL_NODES
+
+default: `False`  
+If True, label all nodes with placement=logtest.  
+If False, remove placment label from all worker nodes and only add it back to 1.
+
+### PROJECT_BASENAME
+
+default: `logtest-`  
+Basename for project creation
+
 ### NUM_PROJECTS
 
 default: `1`  

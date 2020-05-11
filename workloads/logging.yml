@@ -3,7 +3,6 @@
 #  - KUBECONFIG env var is set on orchestration host (would have to be in bashrc) or kubeconfig is set in ~/.kube/config
 #  - cluster-logging operator deployed
 #  - podman installed
-#  - selinux set to permissive (otherwise cluster-loader will fail)
 #  - libselinux-python2 (or variation depending on OS) installed
 - name: Run logging test
   hosts: orchestration
@@ -64,6 +63,10 @@
       template:
         src: templates/logtest-rc.json.j2
         dest: workloads/logtest-rc.json
+    - name: Podman pull cluster-loader image
+      podman_image:
+        name: quay.io/openshift/origin-tests
+        tag: "{{ORIGIN_TESTS_VERSION}}"
     - name: Launch cluster-loader
       shell: |
         podman run \

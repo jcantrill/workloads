@@ -1,8 +1,9 @@
 orchestration_user: "{{ lookup('env', 'ORCHESTRATION_USER')|default('root', true) }}"
 
-LABAL_ALL_NODES: False
+LABAL_ALL_NODES: "{{ lookup('env', 'LABAL_ALL_NODES')|default(False, true) }}"
 
 # Logtest parameters
+PROJECT_BASENAME: "{{ lookup('env', 'PROJECT_BASENAME')|default('logtest-', true) }}"
 NUM_PROJECTS: "{{ lookup('env', 'NUM_PROJECTS')|default(1, true) }}"
 NUM_LINES: "{{ lookup('env', 'NUM_LINES')|default(1800000, true) }}"
 LINE_LENGTH: "{{ lookup('env', 'LINE_LENGTH')|default(1024, true) }}"
