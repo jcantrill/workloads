@@ -28,7 +28,7 @@
     - name: Delete existing logtest indices
       shell: |
         BASE_CMD="oc exec -n openshift-logging -c elasticsearch {{ es_pod.stdout }} -- curl --connect-timeout 2 -s -k --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key"
-        ${BASE_CMD} -X DELETE https://localhost:9200/project.logtest*;
+        ${BASE_CMD} -X DELETE https://localhost:9200/project.{{PROJECT_BASENAME}}*;
       tags:
         - delete_indices
     - name: Get worker nodes
@@ -81,7 +81,7 @@
       pause:
         minutes: "{{ (NUM_LINES|int / RATE|int + PAUSE_OFFSET|int) | round(0, 'ceil') | int }}"
     - name: Get number of messages indexed
-      shell: x=0; for i in $(oc exec -n openshift-logging {{ es_pod.stdout }} -c elasticsearch -- es_util --query='_cat/indices'| grep logtest | awk '{print $7}'); do (( x += i )); done; echo "$x"
+      shell: x=0; for i in $(oc exec -n openshift-logging {{ es_pod.stdout }} -c elasticsearch -- es_util --query='_cat/indices'| grep '{{ PROJECT_BASENAME }}' | awk '{print $7}'); do (( x += i )); done; echo "$x"
       register: num_indexed
     - debug:
         var: num_indexed
@@ -90,6 +90,6 @@
         that:
           - "{{ num_indexed.stdout }} == {{ (NUM_LINES|int) * (NUM_PROJECTS|int) }}"
     - name: Clean up logtest projects
-      shell: oc delete project $(oc get projects | grep logtest | awk '{print $1}' | sed ':a;N;$!ba;s/\n/ /g')
+      shell: oc delete project $(oc get projects | grep '{{ PROJECT_BASENAME }}' | awk '{print $1}' | sed ':a;N;$!ba;s/\n/ /g')
       tags:
         - cleanup
