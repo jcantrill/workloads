@@ -24,11 +24,11 @@
       register: es_pod
       changed_when: False
       tags:
-        - delete_indices
+        - delete_indices_req
     - name: Delete existing logtest indices
       shell: |
         BASE_CMD="oc exec -n openshift-logging -c elasticsearch {{ es_pod.stdout }} -- curl --connect-timeout 2 -s -k --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key"
-        ${BASE_CMD} -X DELETE https://localhost:9200/project.{{PROJECT_BASENAME}}*;
+        ${BASE_CMD} -X DELETE https://localhost:9200/app*;
       tags:
         - delete_indices
     - name: Get worker nodes
@@ -77,11 +77,16 @@
         export VIPERCONFIG=/root/workloads/logtest.yml && \
         openshift-tests run-test "{{ CLUSTER_LOADER_STRING }} concurrently with templates [Suite:openshift]"' \
         |& tee workloads/cluster-loader.log
+      tags: clusterloader
     - name: Puase for time of test + PAUSE_OFFSET
       pause:
         minutes: "{{ (NUM_LINES|int / RATE|int + PAUSE_OFFSET|int) | round(0, 'ceil') | int }}"
+      tags: clusterloader
     - name: Get number of messages indexed
-      shell: x=0; for i in $(oc exec -n openshift-logging {{ es_pod.stdout }} -c elasticsearch -- es_util --query='_cat/indices'| grep '{{ PROJECT_BASENAME }}' | awk '{print $7}'); do (( x += i )); done; echo "$x"
+      shell: |
+        BASE_CMD="oc exec -n openshift-logging -c elasticsearch {{ es_pod.stdout }} -- curl --connect-timeout 2 -s -k --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key"
+        ${BASE_CMD} 'https://localhost:9200/app*/_count' -H 'Content-Type: application/json' \
+          -d '{"query":{"wildcard":{"kubernetes.namespace_name":{"value":"{{PROJECT_BASENAME}}*","boost":1,"rewrite":"constant_score"}}}}' | jq '.count'
       register: num_indexed
     - debug:
         var: num_indexed
