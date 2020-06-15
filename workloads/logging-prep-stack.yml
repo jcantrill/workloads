@@ -1,0 +1,43 @@
+---
+# Assumptions:
+#  - KUBECONFIG env var is set on orchestration host (would have to be in bashrc) or kubeconfig is set in ~/.kube/config
+#  - cluster-logging operator deployed
+#  - podman installed
+#  - libselinux-python2 (or variation depending on OS) installed
+- name: Prep cluster logging
+  hosts: localhost
+  remote_user: "{{orchestration_user}}"
+  vars_files:
+    - vars/logging.yml
+  tasks:
+    - name: Verify oc command is available
+      command: oc version
+      changed_when: False
+    - name: Verify openshift-logging exists
+      shell: oc get projects | grep "openshift-logging"
+      changed_when: False
+    - name: Verify ElasticSearch pods exist
+      shell: oc get pods -n openshift-logging | grep elasticsearch
+      changed_when: False
+    - name: Get ElasticSearch pod to query from
+      shell: oc get pods -n openshift-logging | grep elasticsearch | grep Running | head -n 1 | awk '{print $1}'
+      register: es_pod
+      changed_when: False
+    - name: Set clusterlogging to Unmanaged
+      shell: |
+        oc -n openshift-logging patch clusterlogging/instance --type merge --patch='{"spec":{"managementState":"Unmanaged"}}'
+    - name: create temporary directory for fluent configmap
+      tempfile:
+        state: directory
+        suffix: build
+      register: tempfile_fluent
+    - copy:
+        src: files/logging-fluentd-wo-infra.conf
+        dest: "{{ tempfile_fluent.path }}/fluent.conf"
+    - name: Replace fluent config
+      shell: |
+        oc -n openshift-logging delete configmap fluentd --ignore-not-found &&
+        oc -n openshift-logging create configmap fluentd --from-file={{ tempfile_fluent.path }}
+    - name: Bounce the fluent pods
+      shell: |
+        oc -n openshift-logging delete pods -l component=fluend
