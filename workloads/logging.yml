@@ -52,17 +52,17 @@
       tags: label_node
     - name: Create workloads directory
       file:
-        path: workloads
+        path: "{{ansible_facts['env']['HOME']}}/workloads"
         state: directory
         mode: '0755'
     - name: Template cluster-loader logtest logging config file
       template:
         src: templates/logtest.yml.j2
-        dest: workloads/logtest.yml
+        dest: "{{ansible_facts['env']['HOME']}}/workloads/logtest.yml"
     - name: Template logtest-rc.json
       template:
         src: templates/logtest-rc.json.j2
-        dest: workloads/logtest-rc.json
+        dest: "{{ansible_facts['env']['HOME']}}/workloads/logtest-rc.json"
     - name: Podman pull cluster-loader image
       podman_image:
         name: quay.io/openshift/origin-tests
