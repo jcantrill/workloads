@@ -25,7 +25,7 @@ I left in the step where the variables are templated into logtest.yml in case an
 
 ## Ansible Variables
 
-### LABAL_ALL_NODES
+### LABEL_ALL_NODES
 default: False  
 If False: Remove all placement=logtest labels from worker nodes then add it back to just 1 worker node.  
 If True: Apply placement=logtest label to all worker nodes
@@ -37,7 +37,7 @@ If True: Apply placement=logtest label to all worker nodes
 default: `root`  
 Remote user to connect as.
 
-### LABAL_ALL_NODES
+### LABEL_ALL_NODES
 
 default: `False`  
 If True, label all nodes with placement=logtest.  
@@ -66,7 +66,7 @@ Length of log lines in bytes.
 ### RATE
 
 default: `60000`  
-Messages per second for logtest pod to generate.
+Messages per minute for logtest pod to generate.
 
 ### PAUSE_OFFSET
 

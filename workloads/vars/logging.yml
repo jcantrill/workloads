@@ -1,6 +1,6 @@
 orchestration_user: "{{ lookup('env', 'ORCHESTRATION_USER')|default('root', true) }}"
 
-LABAL_ALL_NODES: "{{ lookup('env', 'LABAL_ALL_NODES')|default(False, true) }}"
+LABEL_ALL_NODES: "{{ lookup('env', 'LABEL_ALL_NODES')|default(False, true) }}"
 
 # Logtest parameters
 PROJECT_BASENAME: "{{ lookup('env', 'PROJECT_BASENAME')|default('logtest-', true) }}"
