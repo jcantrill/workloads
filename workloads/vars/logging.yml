@@ -19,3 +19,5 @@ CLUSTER_LOADER_STRING: "{{ '[sig-scalability][Feature:Performance][Serial][Slow]
                             if ORIGIN_TESTS_VERSION == 'latest'
                             or ORIGIN_TESTS_VERSION is version('4.4', '>=')
                             else '[Feature:Performance][Serial][Slow] Load cluster' }}"
+
+FLUENT_CONF: "{{ lookup('env', 'FLUENT_CONF')|default('files/logging-fluentd-to-file.conf', true) }}"

@@ -1,0 +1,93 @@
+---
+# Assumptions:
+#  - KUBECONFIG env var is set on orchestration host (would have to be in bashrc) or kubeconfig is set in ~/.kube/config
+#  - cluster-logging operator deployed
+#  - podman installed
+#  - libselinux-python2 (or variation depending on OS) installed
+#  - logs are written directly to the collector fs /tmp/logtest
+- name: Run logging test
+  hosts: localhost
+  remote_user: "{{orchestration_user}}"
+  vars_files:
+    - vars/logging.yml
+  tasks:
+    - name: Verify oc command is available
+      command: oc version
+      changed_when: False
+    - name: Verify openshift-logging exists
+      shell: oc get projects | grep "openshift-logging"
+      changed_when: False
+    - name: Delete existing collector buffers
+      shell: |
+        for p in $(oc -n openshift-logging get pods -l component=fluentd -o jsonpath={.items[*].metadata.name}); do oc exec $p -- rm -rf /var/lib/fluentd/** ;done;
+    - name: Get worker nodes
+      shell: oc get nodes | grep worker | awk '{print $1}'
+      register: worker_nodes
+      changed_when: False
+    - name: Label single worker node
+      block:
+        - name: Remove any existing "placement" labels from worker nodes
+          shell: "oc label node {{ item }} placement-"
+          loop: "{{ worker_nodes.stdout_lines }}"
+          register: result
+          changed_when: '"not labeled" not in result.stdout'
+        - name: Label one worker node with placement=logtest
+          shell: oc label node $(oc get nodes | grep worker | head -n 1 | awk '{print $1}') placement=logtest
+      when: not LABAL_ALL_NODES
+      tags: label_node
+    - name: Label all nodes
+      shell: "for i in $(oc get nodes | grep worker | awk '{print $1}'); do oc label node/$i placement=logtest --overwrite; done"
+      when: LABAL_ALL_NODES
+      tags: label_node
+    - name: Create workloads directory
+      file:
+        path: workloads
+        state: directory
+        mode: '0755'
+    - name: Template cluster-loader logtest logging config file
+      template:
+        src: templates/logtest.yml.j2
+        dest: workloads/logtest.yml
+    - name: Template logtest-rc.json
+      template:
+        src: templates/logtest-rc.json.j2
+        dest: workloads/logtest-rc.json
+    - name: Podman pull cluster-loader image
+      podman_image:
+        name: quay.io/openshift/origin-tests
+        tag: "{{ORIGIN_TESTS_VERSION}}"
+    - name: Launch cluster-loader
+      shell: |
+        podman run --rm \
+        -v {{ ansible_facts['env']['KUBECONFIG']|default(ansible_facts['env']['PWD'] + '/.kube/config') }}:/root/.kube/config:z \
+        -v {{ansible_facts['env']['PWD']}}/workloads/:/root/workloads/:z \
+        -i quay.io/openshift/origin-tests:{{ORIGIN_TESTS_VERSION}} \
+        /bin/bash -c 'export KUBECONFIG=/root/.kube/config && \
+        export VIPERCONFIG=/root/workloads/logtest.yml && \
+        openshift-tests run-test "{{ CLUSTER_LOADER_STRING }} concurrently with templates [Suite:openshift]"' \
+        |& tee workloads/cluster-loader.log
+    - set_fact:
+        test_start: "{{ lookup('pipe','date +%s') }}"
+    - name: Node
+      shell: oc get pods --all-namespaces -o wide  | grep logtest  | grep -o ip-.*\.internal | head -1
+      register: ocp_node
+    - name: Fluent pod
+      shell: oc get pods -l component=fluentd -o wide | grep {{ ocp_node.stdout }} | cut -d ' ' -f1
+      register: fluent_pod
+    - name: Pause for est. time of test {{ (NUM_LINES|int / RATE|int) | round(0, 'floor') | int }} min
+      pause:
+        minutes: "{{ (NUM_LINES|int / RATE|int) | round(0, 'floor') | int }}"
+    - name: Check for test completion for up to {{ PAUSE_OFFSET }} min
+      shell: oc exec -n openshift-logging {{ fluent_pod.stdout }} -- bash -c 'wc -l < /tmp/logtest/$(ls /tmp/logtest | head -1)'
+      register: num_indexed
+      until: num_indexed.stdout|int  >=  (NUM_LINES|int) * (NUM_PROJECTS|int)
+      retries: "{{ (60 * PAUSE_OFFSET | int) }}"
+      delay: 1
+    - set_fact:
+        test_end: "{{ lookup('pipe','date +%s') }}"
+    - name: Clean up logtest projects
+      shell: oc exec -n openshift-logging {{ fluent_pod.stdout }} -- rm -rf /tmp/logtest/*
+      tags:
+        - cleanup
+    - name: Test Runtime
+      debug: msg="{{ test_end | int - test_start | int }} sec"

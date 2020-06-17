@@ -35,7 +35,7 @@
       shell: |
         oc -n openshift-logging extract configmap/fluentd --to={{ tempfile_fluent.path }}
     - copy:
-        src: files/logging-fluentd-wo-infra.conf
+        src: "{{ FLUENT_CONF }}"
         dest: "{{ tempfile_fluent.path }}/fluent.conf"
     - name: Replace fluent config
       shell: |
