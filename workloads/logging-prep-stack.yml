@@ -31,13 +31,15 @@
         state: directory
         suffix: build
       register: tempfile_fluent
+    - name: Extract fluentd configmap
+      shell: |
+        oc -n openshift-logging extract configmap/fluentd --to={{ tempfile_fluent.path }}
     - copy:
         src: files/logging-fluentd-wo-infra.conf
         dest: "{{ tempfile_fluent.path }}/fluent.conf"
     - name: Replace fluent config
       shell: |
-        oc -n openshift-logging delete configmap fluentd --ignore-not-found &&
-        oc -n openshift-logging create configmap fluentd --from-file={{ tempfile_fluent.path }}
+        oc -n openshift-logging create configmap fluentd --from-file={{ tempfile_fluent.path }} -o yaml --dry-run | oc replace -f -
     - name: Bounce the fluent pods
       shell: |
-        oc -n openshift-logging delete pods -l component=fluend
+        oc -n openshift-logging delete pods -l component=fluentd
