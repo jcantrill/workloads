@@ -3,6 +3,7 @@ orchestration_user: "{{ lookup('env', 'ORCHESTRATION_USER')|default('root', true
 LABEL_ALL_NODES: "{{ lookup('env', 'LABEL_ALL_NODES')|default(False, true) }}"
 
 # Logtest parameters
+REPLICAS: "{{ lookup('env', 'REPLICAS')|default(1, true) }}"
 PROJECT_BASENAME: "{{ lookup('env', 'PROJECT_BASENAME')|default('logtest-', true) }}"
 NUM_PROJECTS: "{{ lookup('env', 'NUM_PROJECTS')|default(1, true) }}"
 NUM_LINES: "{{ lookup('env', 'NUM_LINES')|default(1800000, true) }}"
@@ -19,3 +20,9 @@ CLUSTER_LOADER_STRING: "{{ '[sig-scalability][Feature:Performance][Serial][Slow]
                             if ORIGIN_TESTS_VERSION == 'latest'
                             or ORIGIN_TESTS_VERSION is version('4.4', '>=')
                             else '[Feature:Performance][Serial][Slow] Load cluster' }}"
+
+FLUENT_CONF: "{{ lookup('env', 'FLUENT_CONF')|default('files/logging-fluentd-wo-infra.conf', true) }}"
+
+KUBECONFIG: "{{ lookup('env', 'KUBECONFIG')|default(lookup('env','HOME') + '/.kube/config') }}"
+# Running with ansible_connection=local may alter this location
+WORKLOAD_DIR: "{{ lookup('env', 'WORKLOAD_DIR')|default(lookup('env','HOME')) }}"
