@@ -8,6 +8,8 @@ Stress test the cluster logging and ElasticSearch operators.
 * kubeconfig present in $HOME/.kube/config on orchestration host
 * podman and libselinux-python2 installed on orchestration host
 * selinux set to permissive (otherwise cluster-loader will fail)
+* clusterlogging instance is "Unmanaged"
+* fluent.conf is modifed to exclude all infra logs (e.g. journal and containers from openshift*, kube*, default)
 
 ## Run from CLI
 
@@ -25,6 +27,10 @@ I left in the step where the variables are templated into logtest.yml in case an
 
 ## Ansible Variables
 
+### FLUENT_CONF:
+The fluent.conf to use when running workload/logging-prep-stack.yml
+
+### LABAL_ALL_NODES
 ### LABEL_ALL_NODES
 default: False  
 If False: Remove all placement=logtest labels from worker nodes then add it back to just 1 worker node.  
@@ -77,3 +83,7 @@ Time to wait (in minutes) after logtest is done before verifying all messages sh
 
 default: `latest`  
 Version of quay.io/openshift/origin-tests to pull.
+
+### WORKLOAD_DIR:
+default: assumes the HOME directory of the machine where ansible is running
+The place from which to source the kubeconfig and mount it into the the running container. You may wish to set to PWD if using `ansible_connection=local`

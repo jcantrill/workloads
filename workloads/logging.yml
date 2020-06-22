@@ -27,10 +27,13 @@
         - delete_indices_req
     - name: Delete existing logtest indices
       shell: |
-        BASE_CMD="oc exec -n openshift-logging -c elasticsearch {{ es_pod.stdout }} -- curl --connect-timeout 2 -s -k --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key"
-        ${BASE_CMD} -X DELETE https://localhost:9200/app*;
+        BASE_CMD="oc exec -n openshift-logging -c elasticsearch {{ es_pod.stdout }} -- es_util"
+        ${BASE_CMD} --query=app* -XDELETE;
       tags:
         - delete_indices
+    - name: Delete existing collector buffers
+      shell: |
+        for p in $(oc -n openshift-logging get pods -l component=fluentd -o jsonpath={.items[*].metadata.name}); do oc -n openshift-logging exec $p -- rm -rf /var/lib/fluentd/** ;done;
     - name: Get worker nodes
       shell: oc get nodes | grep worker | awk '{print $1}'
       register: worker_nodes
@@ -52,17 +55,17 @@
       tags: label_node
     - name: Create workloads directory
       file:
-        path: "{{ansible_facts['env']['HOME']}}/workloads"
+        path: "{{WORKLOAD_DIR}}/workloads"
         state: directory
         mode: '0755'
     - name: Template cluster-loader logtest logging config file
       template:
         src: templates/logtest.yml.j2
-        dest: "{{ansible_facts['env']['HOME']}}/workloads/logtest.yml"
+        dest: "{{WORKLOAD_DIR}}/workloads/logtest.yml"
     - name: Template logtest-rc.json
       template:
         src: templates/logtest-rc.json.j2
-        dest: "{{ansible_facts['env']['HOME']}}/workloads/logtest-rc.json"
+        dest: "{{WORKLOAD_DIR}}/workloads/logtest-rc.json"
     - name: Podman pull cluster-loader image
       podman_image:
         name: quay.io/openshift/origin-tests
@@ -70,31 +73,37 @@
     - name: Launch cluster-loader
       shell: |
         podman run --rm \
-        -v {{ ansible_facts['env']['KUBECONFIG']|default(ansible_facts['env']['HOME'] + '/.kube/config') }}:/root/.kube/config:z \
-        -v {{ansible_facts['env']['HOME']}}/workloads/:/root/workloads/:z \
+        -v {{ KUBECONFIG }}:/root/.kube/config:z \
+        -v {{WORKLOAD_DIR}}/workloads/:/root/workloads/:z \
         -i quay.io/openshift/origin-tests:{{ORIGIN_TESTS_VERSION}} \
         /bin/bash -c 'export KUBECONFIG=/root/.kube/config && \
         export VIPERCONFIG=/root/workloads/logtest.yml && \
         openshift-tests run-test "{{ CLUSTER_LOADER_STRING }} concurrently with templates [Suite:openshift]"' \
-        |& tee workloads/cluster-loader.log
+        |& tee {{WORKLOAD_DIR}}/workloads/cluster-loader.log
       tags: clusterloader
-    - name: Puase for time of test + PAUSE_OFFSET
+    - set_fact:
+        test_start: "{{ lookup('pipe','date +%s') }}"
+    - name: Pause for est. time of test "{{ (NUM_LINES|int / RATE|int) | round(0, 'floor') | int }}" min
       pause:
-        minutes: "{{ (NUM_LINES|int / RATE|int + PAUSE_OFFSET|int) | round(0, 'ceil') | int }}"
-      tags: clusterloader
-    - name: Get number of messages indexed
+        minutes: "{{ (NUM_LINES|int / RATE|int) | round(0, 'floor') | int }}"
+    - name: Check for test completion for up to "{{ PAUSE_OFFSET }}" min -  "{{ (NUM_LINES|int) * (NUM_PROJECTS|int) * (REPLICAS|int) }}" logs
       shell: |
-        BASE_CMD="oc exec -n openshift-logging -c elasticsearch {{ es_pod.stdout }} -- curl --connect-timeout 2 -s -k --cert /etc/elasticsearch/secret/admin-cert --key /etc/elasticsearch/secret/admin-key"
-        ${BASE_CMD} 'https://localhost:9200/app*/_count' -H 'Content-Type: application/json' \
+        oc exec -n openshift-logging -c elasticsearch {{ es_pod.stdout }} -- es_util --query=app*/_count \
           -d '{"query":{"wildcard":{"kubernetes.namespace_name":{"value":"{{PROJECT_BASENAME}}*","boost":1,"rewrite":"constant_score"}}}}' | jq '.count'
       register: num_indexed
-    - debug:
-        var: num_indexed
-    - name: Assert number of messages is equal to NUM_LINES*NUM_PROJECTS
+      until: num_indexed.stdout|int  ==  (NUM_LINES|int) * (NUM_PROJECTS|int) * (REPLICAS|int)
+      retries: "{{ (60 * PAUSE_OFFSET | int) }}"
+      ignore_errors: yes
+      delay: 1
+    - set_fact:
+        test_end: "{{ lookup('pipe','date +%s') }}"
+    - name: Assert number of messages is equal to NUM_LINES*NUM_PROJECTS 
       assert:
         that:
-          - "{{ num_indexed.stdout }} == {{ (NUM_LINES|int) * (NUM_PROJECTS|int) }}"
+          - "{{ num_indexed.stdout }} == {{ (NUM_LINES|int) * (NUM_PROJECTS|int) * (REPLICAS|int) }}"
     - name: Clean up logtest projects
       shell: oc delete project $(oc get projects | grep '{{ PROJECT_BASENAME }}' | awk '{print $1}' | sed ':a;N;$!ba;s/\n/ /g')
       tags:
         - cleanup
+    - name: Test Runtime
+      debug: msg="{{ test_end | int - test_start | int }} sec"

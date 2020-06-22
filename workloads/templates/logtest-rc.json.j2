@@ -27,7 +27,9 @@
         }
       },
       "spec": {
-        "replicas": "${{REPLICAS}}",
+{% endraw %}
+        "replicas": {{REPLICAS}},
+{% raw %}
         "template": {
           "metadata": {
             "generateName": "centos-logtest-",
@@ -90,11 +92,6 @@
     {
       "name": "IDENTIFIER",
       "displayName": "identifier",
-      "value": "1"
-    },
-    {
-      "name": "REPLICAS",
-      "displayName": "Replicas",
       "value": "1"
     },
     {
