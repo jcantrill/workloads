@@ -34,6 +34,8 @@
     - name: Delete existing collector buffers
       shell: |
         for p in $(oc -n openshift-logging get pods -l component=fluentd -o jsonpath={.items[*].metadata.name}); do oc -n openshift-logging exec $p -- rm -rf /var/lib/fluentd/** ;done;
+      tags:
+        - clear_buffers
     - name: Get worker nodes
       shell: oc get nodes | grep worker | awk '{print $1}'
       register: worker_nodes
