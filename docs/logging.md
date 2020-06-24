@@ -7,7 +7,6 @@ Stress test the cluster logging and ElasticSearch operators.
 * Cluster logging operator is deployed
 * kubeconfig present in $HOME/.kube/config on orchestration host
 * podman and libselinux-python2 installed on orchestration host
-* selinux set to permissive (otherwise cluster-loader will fail)
 * clusterlogging instance is "Unmanaged"
 * fluent.conf is modifed to exclude all infra logs (e.g. journal and containers from openshift*, kube*, default)
 
