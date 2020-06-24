@@ -30,7 +30,6 @@ I left in the step where the variables are templated into logtest.yml in case an
 ### FLUENT_CONF:
 The fluent.conf to use when running workload/logging-prep-stack.yml
 
-### LABAL_ALL_NODES
 ### LABEL_ALL_NODES
 default: False  
 If False: Remove all placement=logtest labels from worker nodes then add it back to just 1 worker node.  
