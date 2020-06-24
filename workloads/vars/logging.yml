@@ -23,6 +23,6 @@ CLUSTER_LOADER_STRING: "{{ '[sig-scalability][Feature:Performance][Serial][Slow]
 
 FLUENT_CONF: "{{ lookup('env', 'FLUENT_CONF')|default('files/logging-fluentd-wo-infra.conf', true) }}"
 
-KUBECONFIG: "{{ lookup('env', 'KUBECONFIG')|default(lookup('env','HOME') + '/.kube/config') }}"
+KUBECONFIG: "{{ lookup('env', 'KUBECONFIG')|default(lookup('env','HOME') + '/.kube/config', true) }}"
 # Running with ansible_connection=local may alter this location
-WORKLOAD_DIR: "{{ lookup('env', 'WORKLOAD_DIR')|default(lookup('env','HOME')) }}"
+WORKLOAD_DIR: "{{ lookup('env', 'WORKLOAD_DIR')|default(lookup('env','HOME'), true) }}"
