@@ -25,17 +25,17 @@
       changed_when: False
       tags:
         - delete_indices_req
+    - name: Delete existing collector buffers
+      shell: |
+        for p in $(oc -n openshift-logging get pods -l component=fluentd -o jsonpath={.items[*].metadata.name}); do oc -n openshift-logging -c fluentd exec $p -- rm -rf /var/lib/fluentd/** ;done;
+      tags:
+        - clear_buffers
     - name: Delete existing logtest indices
       shell: |
         BASE_CMD="oc exec -n openshift-logging -c elasticsearch {{ es_pod.stdout }} -- es_util"
         ${BASE_CMD} --query=app* -XDELETE;
       tags:
         - delete_indices
-    - name: Delete existing collector buffers
-      shell: |
-        for p in $(oc -n openshift-logging get pods -l component=fluentd -o jsonpath={.items[*].metadata.name}); do oc -n openshift-logging exec $p -- rm -rf /var/lib/fluentd/** ;done;
-      tags:
-        - clear_buffers
     - name: Get worker nodes
       shell: oc get nodes | grep worker | awk '{print $1}'
       register: worker_nodes
